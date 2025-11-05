@@ -18,6 +18,8 @@ function TaskCard({ task }) {
       : task.priority === 'Medium'
       ? 'bg-amber-50 text-amber-700 border-amber-200'
       : 'bg-blue-50 text-blue-700 border-blue-200';
+  const assigned = task.assignedTo || task.assigned_to;
+  const due = task.dueDate || task.due_date;
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:shadow transition-shadow">
       <div className="flex items-start justify-between gap-2">
@@ -28,9 +30,9 @@ function TaskCard({ task }) {
         <Badge color={priorityColor}>{task.priority}</Badge>
       </div>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Badge>{task.assignedTo}</Badge>
-        <Badge>{task.customer}</Badge>
-        <Badge>{task.dueDate}</Badge>
+        {assigned && <Badge>{assigned}</Badge>}
+        {task.customer && <Badge>{task.customer}</Badge>}
+        {due && <Badge>{due}</Badge>}
       </div>
     </div>
   );
@@ -42,8 +44,14 @@ export default function TaskBoard({ tasks }) {
   const [customer, setCustomer] = useState('All');
   const [status, setStatus] = useState('All');
 
-  const allAssignees = useMemo(() => Array.from(new Set(tasks.map(t => t.assignedTo))), [tasks]);
-  const allCustomers = useMemo(() => Array.from(new Set(tasks.map(t => t.customer))), [tasks]);
+  const allAssignees = useMemo(
+    () => Array.from(new Set(tasks.map(t => t.assignedTo || t.assigned_to).filter(Boolean))),
+    [tasks]
+  );
+  const allCustomers = useMemo(
+    () => Array.from(new Set(tasks.map(t => t.customer).filter(Boolean))),
+    [tasks]
+  );
 
   const filtered = useMemo(() => {
     return tasks.filter(t => {
@@ -52,7 +60,8 @@ export default function TaskBoard({ tasks }) {
             String(v).toLowerCase().includes(query.toLowerCase())
           )
         : true;
-      const matchesAssigned = assigned === 'All' || t.assignedTo === assigned;
+      const assignee = t.assignedTo || t.assigned_to;
+      const matchesAssigned = assigned === 'All' || assignee === assigned;
       const matchesCustomer = customer === 'All' || t.customer === customer;
       const matchesStatus = status === 'All' || t.status === status;
       return matchesQuery && matchesAssigned && matchesCustomer && matchesStatus;
@@ -129,7 +138,7 @@ export default function TaskBoard({ tasks }) {
             </div>
             <div className="space-y-3 p-3">
               {grouped[col]?.length ? (
-                grouped[col].map(t => <TaskCard key={t.id} task={t} />)
+                grouped[col].map(t => <TaskCard key={t.id || t._id} task={t} />)
               ) : (
                 <div className="text-sm text-slate-500">No tasks</div>
               )}

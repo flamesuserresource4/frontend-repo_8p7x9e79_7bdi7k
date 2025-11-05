@@ -1,82 +1,39 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useCallback } from 'react';
 import HeroCover from './components/HeroCover';
 import NavTabs from './components/NavTabs';
 import DashboardOverview from './components/DashboardOverview';
 import TaskBoard from './components/TaskBoard';
+import TaskForm from './components/TaskForm';
 
 function App() {
-  // Sample seed data to showcase UI and interactions
-  const [tasks] = useState([
-    {
-      id: 'T-1001',
-      title: 'COA follow-up for Vantage PO #4491',
-      description: 'Request updated COA and SDS for batch 23-11 from supplier',
-      assignedTo: 'Ana',
-      customer: 'Vantage',
-      supplier: 'ChemX',
-      project: 'East Coast Launch',
-      priority: 'High',
-      status: 'Pending',
-      dueDate: 'Today',
-    },
-    {
-      id: 'T-1002',
-      title: 'Update tracking for Proline order 7728',
-      description: 'Confirm ship date and add tracking to customer portal',
-      assignedTo: 'Andrew',
-      customer: 'Proline',
-      supplier: 'TransHub',
-      project: 'Q4 Replenishment',
-      priority: 'Medium',
-      status: 'In Progress',
-      dueDate: 'Tomorrow',
-    },
-    {
-      id: 'T-1003',
-      title: 'TSCA import certification check',
-      description: 'Verify TSCA status for new raw material — Capacity project',
-      assignedTo: 'Nakeeta',
-      customer: 'Capacity',
-      supplier: 'GlobalChem',
-      project: 'Capacity',
-      priority: 'High',
-      status: 'Pending',
-      dueDate: 'Fri',
-    },
-    {
-      id: 'T-1004',
-      title: 'Warehouse readiness — NJ',
-      description: 'Confirm slotting and hazmat signage for incoming pallets',
-      assignedTo: 'Ana',
-      customer: 'Internal',
-      supplier: 'Warehouse NJ',
-      project: 'Ops',
-      priority: 'Low',
-      status: 'Done',
-      dueDate: 'Yesterday',
-    },
-    {
-      id: 'T-1005',
-      title: 'Send weekly customer summary',
-      description: 'Email completed vs pending shipments by state',
-      assignedTo: 'Andrew',
-      customer: 'Multi-Accounts',
-      supplier: 'Internal',
-      project: 'Reporting',
-      priority: 'Medium',
-      status: 'In Progress',
-      dueDate: 'Today',
-    },
-  ]);
+  const [tasks, setTasks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('Dashboard');
 
   const employees = useMemo(() => ['Ana', 'Andrew', 'Nakeeta'], []);
+  const shipmentSummary = useMemo(() => ({ shipped: 18, delayed: 2, awaitingDocs: 5 }), []);
 
-  const shipmentSummary = useMemo(
-    () => ({ shipped: 18, delayed: 2, awaitingDocs: 5 }),
-    []
-  );
+  const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
 
-  const [activeTab, setActiveTab] = useState('Dashboard');
+  const fetchTasks = useCallback(async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const res = await fetch(`${API_URL}/api/tasks`);
+      if (!res.ok) throw new Error(`Failed to load tasks (${res.status})`);
+      const data = await res.json();
+      setTasks(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [API_URL]);
+
+  useEffect(() => {
+    fetchTasks();
+  }, [fetchTasks]);
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white to-slate-50 text-slate-900">
@@ -88,7 +45,18 @@ function App() {
           <DashboardOverview tasks={tasks} shipmentSummary={shipmentSummary} />
         )}
 
-        {activeTab === 'Tasks' && <TaskBoard tasks={tasks} employees={employees} />}
+        {activeTab === 'Tasks' && (
+          <>
+            <TaskForm onCreated={fetchTasks} employees={employees} />
+            {loading && (
+              <div className="mt-4 text-sm text-slate-500">Loading tasks…</div>
+            )}
+            {error && (
+              <div className="mt-4 text-sm text-rose-600">{error}</div>
+            )}
+            <TaskBoard tasks={tasks} />
+          </>
+        )}
 
         {activeTab === 'Documents' && (
           <div className="mt-6 grid grid-cols-1 gap-4">
